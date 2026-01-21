@@ -783,6 +783,7 @@ export default function VideoCataloger() {
                       setSelectedVideos(new Set([video.id]));
                     }
                   }}
+                  onToggleFavorite={() => handleToggleFavorite(video.id)}
                 />
               ))}
             </div>
