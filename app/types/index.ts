@@ -25,7 +25,7 @@ export interface VideoMetadata {
 }
 
 export interface VideoFile {
-  id: any;
+  id: string;  // Changed from 'any' to 'string' for type safety
   filename: string;
   size: number;  // Keep for display purposes only, won't be exported to JSON
   metadata: VideoMetadata;
@@ -35,12 +35,28 @@ export interface Catalog {
   generatedAt: string;
   cameraModel: string;
   totalVideos: number;
-  videos: any[];
+  videos: VideoExport[];
+}
+
+// Type for exported video data (without internal fields)
+export interface VideoExport {
+  filename: string;
+  title: string;
+  date: string;
+  location: string;
+  tags: string[];
+  notes: string;
+  recordingTime?: string;
+  lens?: string;
+  clipNumber?: number;
+  cameraModel?: string;
+  customFields?: CustomField[];
 }
 
 export interface Notification {
+  id: string;
   message: string;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warning' | 'info';
 }
 
 export interface BatchMetadata {
@@ -48,4 +64,22 @@ export interface BatchMetadata {
   tags: string[];
   notes: string;
   customFields: CustomField[];
+}
+
+// Sort options
+export type SortField = 'date' | 'filename' | 'title' | 'missing-title';
+export type SortDirection = 'asc' | 'desc';
+
+export interface SortConfig {
+  field: SortField;
+  direction: SortDirection;
+}
+
+// Statistics
+export interface CatalogStats {
+  total: number;
+  withTitle: number;
+  withLocation: number;
+  withTags: number;
+  byCamera: Record<string, number>;
 }
