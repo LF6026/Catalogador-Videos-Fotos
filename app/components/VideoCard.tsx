@@ -1,12 +1,14 @@
+'use client';
+
 import React from 'react';
 import { VideoFile } from '../types';
-import { Film, CheckCircle2, Clock, Tag } from 'lucide-react';
+import { Film, CheckCircle2, Clock, Tag, MapPin } from 'lucide-react';
 
 interface VideoCardProps {
     video: VideoFile;
     isSelected?: boolean;
     onSelect?: () => void;
-    onClick?: () => void;
+    onClick?: (e: React.MouseEvent) => void;
 }
 
 export default function VideoCard({ video, isSelected, onSelect, onClick }: VideoCardProps) {
@@ -15,12 +17,12 @@ export default function VideoCard({ video, isSelected, onSelect, onClick }: Vide
     return (
         <div
             className={`
-        group relative aspect-video bg-slate-900 rounded-lg overflow-hidden border transition-all duration-200 cursor-pointer
-        ${isSelected
+                group relative aspect-video bg-slate-900 rounded-lg overflow-hidden border transition-all duration-200 cursor-pointer
+                ${isSelected
                     ? 'border-indigo-500 ring-1 ring-indigo-500 shadow-lg shadow-indigo-500/20'
                     : 'border-slate-800 hover:border-slate-600 hover:shadow-md'
                 }
-      `}
+            `}
             onClick={onClick}
         >
             {/* Thumbnail Layer */}
@@ -32,7 +34,7 @@ export default function VideoCard({ video, isSelected, onSelect, onClick }: Vide
                 )}
             </div>
 
-            {/* Overlay Gradient (Always visible but stronger on hover) */}
+            {/* Overlay Gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity" />
 
             {/* Selection Checkbox (Top Left) */}
@@ -41,21 +43,26 @@ export default function VideoCard({ video, isSelected, onSelect, onClick }: Vide
                 onClick={(e) => { e.stopPropagation(); onSelect?.(); }}
             >
                 <div className={`
-          w-5 h-5 rounded-full flex items-center justify-center transition-all
-          ${isSelected
+                    w-5 h-5 rounded-full flex items-center justify-center transition-all
+                    ${isSelected
                         ? 'bg-indigo-500 text-white'
                         : 'bg-black/40 text-transparent border border-white/30 hover:border-white/80 hover:bg-black/60'
                     }
-        `}>
+                `}>
                     <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
             </div>
 
-            {/* Badge (Top Right) - Duration */}
+            {/* Badge (Top Right) - Recording Time */}
             {metadata.recordingTime && (
                 <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-sm border border-white/10 text-[10px] font-mono text-slate-300">
                     {metadata.recordingTime}
                 </div>
+            )}
+
+            {/* Missing Title Indicator */}
+            {!metadata.title && (
+                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500" title="Sem título" />
             )}
 
             {/* Content (Bottom) */}
@@ -69,6 +76,12 @@ export default function VideoCard({ video, isSelected, onSelect, onClick }: Vide
                         <Clock className="w-3 h-3" />
                         {metadata.date}
                     </span>
+                    {metadata.location && (
+                        <span className="flex items-center gap-1 truncate max-w-[80px]">
+                            <MapPin className="w-3 h-3 flex-shrink-0" />
+                            {metadata.location}
+                        </span>
+                    )}
                     {metadata.tags.length > 0 && (
                         <span className="flex items-center gap-1">
                             <Tag className="w-3 h-3" />
