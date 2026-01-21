@@ -16,6 +16,10 @@ export interface VideoMetadata {
   lens?: string;           // Insta360
   clipNumber?: number;     // Insta360/Canon
 
+  // Logic & Visuals
+  cameraModel?: string;    // Correct place for camera model
+  thumbnail?: string;      // Base64 thumbnail
+
   // Extensible
   customFields: CustomField[];
 }
@@ -30,7 +34,6 @@ export interface VideoFile {
 export interface Catalog {
   generatedAt: string;
   cameraModel: string;
-  directoryPath: string;
   totalVideos: number;
   videos: any[];
 }
