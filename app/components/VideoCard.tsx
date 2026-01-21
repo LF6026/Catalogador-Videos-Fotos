@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { VideoFile } from '../types';
-import { Film, CheckCircle2, Clock, Tag, MapPin } from 'lucide-react';
+import { Film, CheckCircle2, Clock, Tag, MapPin, Star } from 'lucide-react';
 
 interface VideoCardProps {
     video: VideoFile;
@@ -20,7 +20,9 @@ export default function VideoCard({ video, isSelected, onSelect, onClick }: Vide
                 group relative aspect-video bg-slate-900 rounded-lg overflow-hidden border transition-all duration-200 cursor-pointer
                 ${isSelected
                     ? 'border-indigo-500 ring-1 ring-indigo-500 shadow-lg shadow-indigo-500/20'
-                    : 'border-slate-800 hover:border-slate-600 hover:shadow-md'
+                    : metadata.favorite
+                        ? 'border-amber-500/50 hover:border-amber-500 hover:shadow-md'
+                        : 'border-slate-800 hover:border-slate-600 hover:shadow-md'
                 }
             `}
             onClick={onClick}
@@ -53,16 +55,23 @@ export default function VideoCard({ video, isSelected, onSelect, onClick }: Vide
                 </div>
             </div>
 
-            {/* Badge (Top Right) - Recording Time */}
+            {/* Favorite Star (Top Right) */}
+            {metadata.favorite && (
+                <div className="absolute top-2 right-2 z-10">
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400 drop-shadow-lg" />
+                </div>
+            )}
+
+            {/* Badge - Recording Time (Below favorite if exists) */}
             {metadata.recordingTime && (
-                <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-sm border border-white/10 text-[10px] font-mono text-slate-300">
+                <div className={`absolute ${metadata.favorite ? 'top-8' : 'top-2'} right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-sm border border-white/10 text-[10px] font-mono text-slate-300`}>
                     {metadata.recordingTime}
                 </div>
             )}
 
-            {/* Missing Title Indicator */}
-            {!metadata.title && (
-                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500" title="Sem título" />
+            {/* Missing Title Indicator (only if no favorite star) */}
+            {!metadata.title && !metadata.favorite && !metadata.recordingTime && (
+                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500" title="Sem título" />
             )}
 
             {/* Content (Bottom) */}

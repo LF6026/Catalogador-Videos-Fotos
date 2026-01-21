@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Upload, Search, PlusCircle, ArrowUpDown } from 'lucide-react';
-import { VideoFile, SortConfig, CatalogStats, VideoExport } from './types';
+import { VideoFile, SortConfig, CatalogStats, VideoExport, CustomField } from './types';
 import { parseFilename } from './utils/parsers';
 
 // Components
@@ -87,11 +87,13 @@ export default function VideoCataloger() {
     let withTitle = 0;
     let withLocation = 0;
     let withTags = 0;
+    let favorites = 0;
 
     videos.forEach(v => {
       if (v.metadata.title) withTitle++;
       if (v.metadata.location) withLocation++;
       if (v.metadata.tags.length > 0) withTags++;
+      if (v.metadata.favorite) favorites++;
       const cam = v.metadata.cameraModel || 'Desconhecida';
       byCamera[cam] = (byCamera[cam] || 0) + 1;
     });
@@ -101,6 +103,7 @@ export default function VideoCataloger() {
       withTitle,
       withLocation,
       withTags,
+      favorites,
       byCamera
     };
   }, [videos]);
@@ -114,6 +117,8 @@ export default function VideoCataloger() {
       result = result.filter(v => !v.metadata.title);
     } else if (filterType === 'auto-only') {
       result = result.filter(v => v.metadata.recordingTime);
+    } else if (filterType === 'favorites') {
+      result = result.filter(v => v.metadata.favorite);
     }
 
     // Filter by camera
@@ -150,6 +155,11 @@ export default function VideoCataloger() {
           const aHasTitle = a.metadata.title ? 1 : 0;
           const bHasTitle = b.metadata.title ? 1 : 0;
           return direction * (aHasTitle - bHasTitle);
+        case 'favorites':
+          // Favorites first
+          const aFav = a.metadata.favorite ? 0 : 1;
+          const bFav = b.metadata.favorite ? 0 : 1;
+          return direction * (aFav - bFav);
         default:
           return 0;
       }
@@ -197,6 +207,62 @@ export default function VideoCataloger() {
     ));
   }, []);
 
+  // --- Custom Fields ---
+  const handleAddCustomField = useCallback((id: string, field: CustomField) => {
+    setVideos(prev => prev.map(v =>
+      v.id === id
+        ? { ...v, metadata: { ...v.metadata, customFields: [...v.metadata.customFields, field] } }
+        : v
+    ));
+  }, []);
+
+  const handleBatchAddCustomField = useCallback((ids: string[], field: CustomField) => {
+    setVideos(prev => prev.map(v =>
+      ids.includes(v.id)
+        ? { ...v, metadata: { ...v.metadata, customFields: [...v.metadata.customFields, field] } }
+        : v
+    ));
+  }, []);
+
+  const handleRemoveCustomField = useCallback((id: string, index: number) => {
+    setVideos(prev => prev.map(v =>
+      v.id === id
+        ? { ...v, metadata: { ...v.metadata, customFields: v.metadata.customFields.filter((_, i) => i !== index) } }
+        : v
+    ));
+  }, []);
+
+  const handleUpdateCustomField = useCallback((id: string, index: number, field: CustomField) => {
+    setVideos(prev => prev.map(v =>
+      v.id === id
+        ? {
+            ...v,
+            metadata: {
+              ...v.metadata,
+              customFields: v.metadata.customFields.map((f, i) => i === index ? field : f)
+            }
+          }
+        : v
+    ));
+  }, []);
+
+  // --- Favorites ---
+  const handleToggleFavorite = useCallback((id: string) => {
+    setVideos(prev => prev.map(v =>
+      v.id === id
+        ? { ...v, metadata: { ...v.metadata, favorite: !v.metadata.favorite } }
+        : v
+    ));
+  }, []);
+
+  const handleBatchToggleFavorite = useCallback((ids: string[], favorite: boolean) => {
+    setVideos(prev => prev.map(v =>
+      ids.includes(v.id)
+        ? { ...v, metadata: { ...v.metadata, favorite } }
+        : v
+    ));
+  }, []);
+
   // --- JSON Export ---
   const handleExportJSON = async () => {
     if (videos.length === 0) {
@@ -216,6 +282,7 @@ export default function VideoCataloger() {
           location: v.metadata.location,
           tags: v.metadata.tags,
           notes: v.metadata.notes,
+          favorite: v.metadata.favorite || undefined,
           recordingTime: v.metadata.recordingTime,
           lens: v.metadata.lens,
           clipNumber: v.metadata.clipNumber,
@@ -269,7 +336,7 @@ export default function VideoCataloger() {
 
     try {
       // CSV header
-      const headers = ['Arquivo', 'Título', 'Data', 'Local', 'Tags', 'Notas', 'Hora', 'Lente', 'Clip', 'Câmera'];
+      const headers = ['Arquivo', 'Título', 'Data', 'Local', 'Tags', 'Notas', 'Favorito', 'Hora', 'Lente', 'Clip', 'Câmera'];
 
       // CSV rows
       const rows = videos.map(v => [
@@ -279,6 +346,7 @@ export default function VideoCataloger() {
         v.metadata.location || '',
         v.metadata.tags.join('; '),
         (v.metadata.notes || '').replace(/"/g, '""').replace(/\n/g, ' '),
+        v.metadata.favorite ? 'Sim' : '',
         v.metadata.recordingTime || '',
         v.metadata.lens || '',
         v.metadata.clipNumber?.toString() || '',
@@ -352,6 +420,7 @@ export default function VideoCataloger() {
                   location: v.location || '',
                   tags: Array.isArray(v.tags) ? v.tags : [],
                   notes: v.notes || '',
+                  favorite: v.favorite || false,
                   recordingTime: v.recordingTime,
                   lens: v.lens,
                   clipNumber: v.clipNumber,
@@ -456,6 +525,7 @@ export default function VideoCataloger() {
           location: '',
           tags: [],
           notes: '',
+          favorite: false,
           recordingTime: parsed?.time,
           lens: parsed?.lens,
           clipNumber: parsed?.clipNumber,
@@ -567,6 +637,12 @@ export default function VideoCataloger() {
             onAddTag={handleAddTag}
             onBatchAddTag={handleBatchAddTag}
             onRemoveTag={handleRemoveTag}
+            onAddCustomField={handleAddCustomField}
+            onBatchAddCustomField={handleBatchAddCustomField}
+            onRemoveCustomField={handleRemoveCustomField}
+            onUpdateCustomField={handleUpdateCustomField}
+            onToggleFavorite={handleToggleFavorite}
+            onBatchToggleFavorite={handleBatchToggleFavorite}
           />
         }
       >
@@ -620,6 +696,12 @@ export default function VideoCataloger() {
                     className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-800 ${sortConfig.field === 'missing-title' ? 'text-indigo-400' : 'text-slate-300'}`}
                   >
                     Sem Título Primeiro
+                  </button>
+                  <button
+                    onClick={() => toggleSort('favorites')}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-800 ${sortConfig.field === 'favorites' ? 'text-amber-400' : 'text-slate-300'}`}
+                  >
+                    Favoritos Primeiro
                   </button>
                 </div>
               </div>

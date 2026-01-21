@@ -10,6 +10,7 @@ export interface VideoMetadata {
   location: string;
   tags: string[];
   notes: string;
+  favorite: boolean;  // Quick access to best videos
 
   // Auto-detected fields (from camera filename parsing)
   recordingTime?: string;  // Insta360
@@ -46,6 +47,7 @@ export interface VideoExport {
   location: string;
   tags: string[];
   notes: string;
+  favorite?: boolean;
   recordingTime?: string;
   lens?: string;
   clipNumber?: number;
@@ -67,7 +69,7 @@ export interface BatchMetadata {
 }
 
 // Sort options
-export type SortField = 'date' | 'filename' | 'title' | 'missing-title';
+export type SortField = 'date' | 'filename' | 'title' | 'missing-title' | 'favorites';
 export type SortDirection = 'asc' | 'desc';
 
 export interface SortConfig {
@@ -81,5 +83,6 @@ export interface CatalogStats {
   withTitle: number;
   withLocation: number;
   withTags: number;
+  favorites: number;
   byCamera: Record<string, number>;
 }
