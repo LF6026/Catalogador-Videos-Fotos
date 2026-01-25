@@ -92,22 +92,28 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
   const filteredVideos = useMemo(() => {
     let result = indexedVideos;
 
-    // Search
+    // Search - supports multiple terms (space or comma separated)
+    // All terms must match (AND logic)
     if (searchTerm.trim()) {
-      const lower = searchTerm.toLowerCase();
-      result = result.filter(v =>
-        v.filename.toLowerCase().includes(lower) ||
-        v.metadata.title?.toLowerCase().includes(lower) ||
-        v.metadata.location?.toLowerCase().includes(lower) ||
-        v.metadata.date?.includes(lower) ||
-        v.metadata.tags?.some(t => t.toLowerCase().includes(lower)) ||
-        v.metadata.notes?.toLowerCase().includes(lower) ||
-        v.sourcePath.toLowerCase().includes(lower) ||
-        v.metadata.customFields?.some(f =>
-          f.key.toLowerCase().includes(lower) ||
-          f.value.toLowerCase().includes(lower)
-        )
-      );
+      // Split by space or comma, filter empty strings
+      const terms = searchTerm.toLowerCase().split(/[\s,]+/).filter(t => t.length > 0);
+
+      result = result.filter(v => {
+        // Build searchable text from all fields
+        const searchableText = [
+          v.filename,
+          v.metadata.title,
+          v.metadata.location,
+          v.metadata.date,
+          v.metadata.notes,
+          v.sourcePath,
+          ...(v.metadata.tags || []),
+          ...(v.metadata.customFields || []).map(f => `${f.key} ${f.value}`)
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        // All terms must be found
+        return terms.every(term => searchableText.includes(term));
+      });
     }
 
     // Filter by camera
