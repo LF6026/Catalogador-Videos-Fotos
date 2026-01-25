@@ -272,9 +272,6 @@ export default function VideoCataloger() {
 
     try {
       const data = {
-        generatedAt: new Date().toISOString(),
-        cameraModel,
-        totalVideos: videos.length,
         videos: videos.map(v => ({
           filename: v.filename,
           title: v.metadata.title,
@@ -424,7 +421,7 @@ export default function VideoCataloger() {
                   recordingTime: v.recordingTime,
                   lens: v.lens,
                   clipNumber: v.clipNumber,
-                  cameraModel: v.cameraModel || data.cameraModel,
+                  cameraModel: v.cameraModel,
                   customFields: Array.isArray(v.customFields) ? v.customFields : []
                 }
               });
