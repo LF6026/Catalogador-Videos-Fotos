@@ -86,3 +86,24 @@ export interface CatalogStats {
   favorites: number;
   byCamera: Record<string, number>;
 }
+
+// App Mode
+export type AppMode = 'catalog' | 'search';
+
+// Search Mode Types
+export interface IndexedVideo {
+  id: string;
+  filename: string;
+  metadata: VideoMetadata;
+  // Source information
+  sourcePath: string;      // Full path: "2024/Viagem-Praia"
+  sourceFile: string;      // JSON filename: "catalog-2024-01-15.json"
+}
+
+export interface SearchStats {
+  totalVideos: number;
+  totalCatalogs: number;
+  folders: string[];
+  cameras: string[];
+  dateRange: { min: string; max: string } | null;
+}

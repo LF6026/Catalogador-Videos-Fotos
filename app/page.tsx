@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Upload, Search, PlusCircle, ArrowUpDown } from 'lucide-react';
-import { VideoFile, SortConfig, CatalogStats, VideoExport, CustomField } from './types';
+import { Upload, Search, PlusCircle, ArrowUpDown, FolderSearch, FileVideo } from 'lucide-react';
+import { VideoFile, SortConfig, CatalogStats, VideoExport, CustomField, AppMode } from './types';
 import { parseFilename } from './utils/parsers';
 
 // Components
@@ -10,6 +10,7 @@ import StudioLayout from './components/layout/StudioLayout';
 import StudioSidebar from './components/layout/Sidebar';
 import StudioInspector from './components/layout/Inspector';
 import VideoCard from './components/VideoCard';
+import SearchMode from './components/SearchMode';
 import { ToastContainer, useNotifications } from './components/Toast';
 
 // Local Storage Keys
@@ -32,6 +33,9 @@ export default function VideoCataloger() {
   const [cameraModel, setCameraModel] = useState('');
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // --- App Mode ---
+  const [appMode, setAppMode] = useState<AppMode>('catalog');
 
   // --- UI State ---
   const [selectedVideos, setSelectedVideos] = useState(new Set<string>());
@@ -610,7 +614,40 @@ export default function VideoCataloger() {
 
   return (
     <>
-      <StudioLayout
+      {/* Mode Toggle Header */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-slate-950 border-b border-slate-800">
+        <div className="flex items-center justify-center gap-1 p-2">
+          <button
+            onClick={() => setAppMode('catalog')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              appMode === 'catalog'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            <FileVideo className="w-4 h-4" />
+            Catalogar
+          </button>
+          <button
+            onClick={() => setAppMode('search')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              appMode === 'search'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            <FolderSearch className="w-4 h-4" />
+            Buscar
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content with top padding for fixed header */}
+      <div className="pt-14 h-screen">
+        {appMode === 'search' ? (
+          <SearchMode onNotify={notify} />
+        ) : (
+          <StudioLayout
         sidebar={
           <StudioSidebar
             cameraModel={cameraModel}
@@ -794,6 +831,8 @@ export default function VideoCataloger() {
           )}
         </div>
       </StudioLayout>
+        )}
+      </div>
 
       {/* Toast Notifications */}
       <ToastContainer notifications={notifications} onDismiss={dismissNotification} />
