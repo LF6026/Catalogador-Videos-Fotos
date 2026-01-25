@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { Camera, Grid, Star, Download, FolderInput, FileSpreadsheet, BarChart3, MapPin, Tag, Type } from 'lucide-react';
+import { Camera, Grid, Star, Download, FolderInput, FileSpreadsheet, BarChart3, MapPin, Tag, Type, FileQuestion } from 'lucide-react';
 import { CAMERA_MODELS } from '../../utils/parsers';
 import { CatalogStats } from '../../types';
 
@@ -80,16 +80,31 @@ export default function StudioSidebar({
                     <span className="ml-auto text-xs text-slate-600">{stats.total}</span>
                 </div>
 
+                <div
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                        filterType === 'favorites'
+                            ? 'bg-amber-500/10 text-amber-400'
+                            : 'text-slate-400 hover:text-amber-400 hover:bg-slate-800/50'
+                    }`}
+                    onClick={() => setFilterType('favorites')}
+                >
+                    <Star className={`w-4 h-4 ${filterType === 'favorites' ? 'fill-amber-400' : ''}`} />
+                    <span>Favoritos</span>
+                    {stats.favorites > 0 && (
+                        <span className="ml-auto text-xs text-amber-500">{stats.favorites}</span>
+                    )}
+                </div>
+
                 <div className={navItemClass(filterType === 'auto-only')} onClick={() => setFilterType('auto-only')}>
                     <Camera className="w-4 h-4" />
                     <span>Identificados (Auto)</span>
                 </div>
 
                 <div className={navItemClass(filterType === 'missing-title')} onClick={() => setFilterType('missing-title')}>
-                    <Star className="w-4 h-4" />
+                    <FileQuestion className="w-4 h-4" />
                     <span>Sem Título</span>
                     {stats.total - stats.withTitle > 0 && (
-                        <span className="ml-auto text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
+                        <span className="ml-auto text-xs bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded">
                             {stats.total - stats.withTitle}
                         </span>
                     )}
@@ -219,7 +234,7 @@ export default function StudioSidebar({
 
             <div className="mt-4 pt-4 border-t border-slate-800">
                 <div className="flex items-center justify-between px-2 text-xs text-slate-500">
-                    <span>v2.2</span>
+                    <span>v2.3</span>
                     <div className="w-2 h-2 rounded-full bg-emerald-500" title="Online"></div>
                 </div>
             </div>
