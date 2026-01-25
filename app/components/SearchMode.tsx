@@ -56,10 +56,31 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
   const [indexedVideos, setIndexedVideos] = useState<IndexedVideo[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [rootFolderName, setRootFolderName] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerms, setSearchTerms] = useState<string[]>([]);  // Array of search chips
+  const [inputValue, setInputValue] = useState('');  // Current input
   const [filterCamera, setFilterCamera] = useState('');
   const [filterFavorites, setFilterFavorites] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  // Add search term on Enter
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && inputValue.trim()) {
+      e.preventDefault();
+      const newTerm = inputValue.trim().toLowerCase();
+      if (!searchTerms.includes(newTerm)) {
+        setSearchTerms(prev => [...prev, newTerm]);
+      }
+      setInputValue('');
+    } else if (e.key === 'Backspace' && !inputValue && searchTerms.length > 0) {
+      // Remove last term if input is empty and backspace is pressed
+      setSearchTerms(prev => prev.slice(0, -1));
+    }
+  };
+
+  // Remove a specific term
+  const removeTerm = (termToRemove: string) => {
+    setSearchTerms(prev => prev.filter(t => t !== termToRemove));
+  };
 
   // Stats
   const stats: SearchStats = useMemo(() => {
@@ -92,12 +113,8 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
   const filteredVideos = useMemo(() => {
     let result = indexedVideos;
 
-    // Search - supports multiple terms (space or comma separated)
-    // All terms must match (AND logic)
-    if (searchTerm.trim()) {
-      // Split by space or comma, filter empty strings
-      const terms = searchTerm.toLowerCase().split(/[\s,]+/).filter(t => t.length > 0);
-
+    // Search - all terms must match (AND logic)
+    if (searchTerms.length > 0) {
       result = result.filter(v => {
         // Build searchable text from all fields
         const searchableText = [
@@ -112,7 +129,7 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
         ].filter(Boolean).join(' ').toLowerCase();
 
         // All terms must be found
-        return terms.every(term => searchableText.includes(term));
+        return searchTerms.every(term => searchableText.includes(term));
       });
     }
 
@@ -127,7 +144,7 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
     }
 
     return result;
-  }, [indexedVideos, searchTerm, filterCamera, filterFavorites]);
+  }, [indexedVideos, searchTerms, filterCamera, filterFavorites]);
 
   // Group by folder
   const groupedByFolder = useMemo(() => {
@@ -246,12 +263,13 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
 
   // Clear filters
   const clearFilters = () => {
-    setSearchTerm('');
+    setSearchTerms([]);
+    setInputValue('');
     setFilterCamera('');
     setFilterFavorites(false);
   };
 
-  const hasActiveFilters = searchTerm || filterCamera || filterFavorites;
+  const hasActiveFilters = searchTerms.length > 0 || filterCamera || filterFavorites;
 
   return (
     <div className="h-full flex">
@@ -361,28 +379,60 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
       <div className="flex-1 flex flex-col">
         {/* Search Bar */}
         <div className="sticky top-0 z-10 bg-slate-950/80 backdrop-blur-md p-4 border-b border-slate-800">
-          <div className="relative max-w-2xl mx-auto">
-            <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Buscar por título, local, data, tags, notas, pasta..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-full pl-12 pr-4 py-3 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+          <div className="max-w-3xl mx-auto">
+            {/* Search Input with Chips */}
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
+              <Search className="w-5 h-5 text-slate-500 flex-shrink-0" />
+
+              {/* Chips */}
+              <div className="flex flex-wrap items-center gap-2 flex-1">
+                {searchTerms.map((term, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-600/30 text-indigo-300 rounded-full text-sm border border-indigo-500/30"
+                  >
+                    {term}
+                    <button
+                      onClick={() => removeTerm(term)}
+                      className="hover:text-white transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                ))}
+
+                {/* Input */}
+                <input
+                  type="text"
+                  placeholder={searchTerms.length === 0 ? "Digite e pressione Enter para adicionar filtros..." : "Adicionar filtro..."}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="flex-1 min-w-[150px] bg-transparent border-none outline-none text-slate-200 placeholder:text-slate-600 py-1"
+                />
+              </div>
+
+              {/* Clear all */}
+              {(searchTerms.length > 0 || inputValue) && (
+                <button
+                  onClick={() => { setSearchTerms([]); setInputValue(''); }}
+                  className="text-slate-500 hover:text-slate-300 flex-shrink-0"
+                  title="Limpar busca"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Helper text */}
+            <p className="text-xs text-slate-600 mt-2 text-center">
+              Pressione <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">Enter</kbd> para adicionar • <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">Backspace</kbd> para remover último
+            </p>
           </div>
 
           {/* Results count */}
           {indexedVideos.length > 0 && (
-            <div className="text-center mt-2 text-sm text-slate-500">
+            <div className="text-center mt-3 text-sm text-slate-500">
               {filteredVideos.length === indexedVideos.length
                 ? `${indexedVideos.length} vídeos`
                 : `${filteredVideos.length} de ${indexedVideos.length} vídeos`
@@ -439,7 +489,7 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
                 {expandedFolders.has(folder) && (
                   <div className="border-t border-slate-800 divide-y divide-slate-800/50">
                     {videos.map(video => (
-                      <VideoSearchResult key={video.id} video={video} searchTerm={searchTerm} />
+                      <VideoSearchResult key={video.id} video={video} searchTerms={searchTerms} />
                     ))}
                   </div>
                 )}
@@ -455,16 +505,18 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
 // Video Search Result Component
 interface VideoSearchResultProps {
   video: IndexedVideo;
-  searchTerm: string;
+  searchTerms: string[];
 }
 
-function VideoSearchResult({ video, searchTerm }: VideoSearchResultProps) {
+function VideoSearchResult({ video, searchTerms }: VideoSearchResultProps) {
   const { metadata, filename, sourceFile } = video;
 
-  // Highlight matching text
+  // Highlight matching text for all search terms
   const highlight = (text: string) => {
-    if (!searchTerm.trim() || !text) return text;
-    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    if (searchTerms.length === 0 || !text) return text;
+    // Create regex that matches any of the search terms
+    const pattern = searchTerms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const regex = new RegExp(`(${pattern})`, 'gi');
     const parts = text.split(regex);
     return parts.map((part, i) =>
       regex.test(part) ? <mark key={i} className="bg-amber-500/30 text-amber-200 rounded px-0.5">{part}</mark> : part
