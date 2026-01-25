@@ -51,35 +51,110 @@ const generateId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
 
+// Search filter types
+type FilterField = 'all' | 'titulo' | 'tag' | 'local' | 'nota' | 'data' | 'pasta' | 'camera' | 'campo';
+
+interface SearchFilter {
+  id: string;
+  field: FilterField;
+  value: string;
+}
+
+// Field prefixes mapping
+const FIELD_PREFIXES: Record<string, FilterField> = {
+  'titulo:': 'titulo',
+  'title:': 'titulo',
+  'tag:': 'tag',
+  'local:': 'local',
+  'loc:': 'local',
+  'nota:': 'nota',
+  'note:': 'nota',
+  'data:': 'data',
+  'date:': 'data',
+  'pasta:': 'pasta',
+  'folder:': 'pasta',
+  'camera:': 'camera',
+  'cam:': 'camera',
+  'campo:': 'campo',
+  'field:': 'campo',
+};
+
+// Field colors for chips
+const FIELD_COLORS: Record<FilterField, string> = {
+  all: 'bg-indigo-600/30 text-indigo-300 border-indigo-500/30',
+  titulo: 'bg-emerald-600/30 text-emerald-300 border-emerald-500/30',
+  tag: 'bg-amber-600/30 text-amber-300 border-amber-500/30',
+  local: 'bg-cyan-600/30 text-cyan-300 border-cyan-500/30',
+  nota: 'bg-purple-600/30 text-purple-300 border-purple-500/30',
+  data: 'bg-rose-600/30 text-rose-300 border-rose-500/30',
+  pasta: 'bg-orange-600/30 text-orange-300 border-orange-500/30',
+  camera: 'bg-sky-600/30 text-sky-300 border-sky-500/30',
+  campo: 'bg-pink-600/30 text-pink-300 border-pink-500/30',
+};
+
+const FIELD_LABELS: Record<FilterField, string> = {
+  all: '',
+  titulo: 'título',
+  tag: 'tag',
+  local: 'local',
+  nota: 'nota',
+  data: 'data',
+  pasta: 'pasta',
+  camera: 'câmera',
+  campo: 'campo',
+};
+
 export default function SearchMode({ onNotify }: SearchModeProps) {
   // State
   const [indexedVideos, setIndexedVideos] = useState<IndexedVideo[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [rootFolderName, setRootFolderName] = useState<string>('');
-  const [searchTerms, setSearchTerms] = useState<string[]>([]);  // Array of search chips
-  const [inputValue, setInputValue] = useState('');  // Current input
+  const [searchFilters, setSearchFilters] = useState<SearchFilter[]>([]);
+  const [inputValue, setInputValue] = useState('');
   const [filterCamera, setFilterCamera] = useState('');
   const [filterFavorites, setFilterFavorites] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  // Parse input and add filter
+  const addFilter = (input: string) => {
+    const trimmed = input.trim().toLowerCase();
+    if (!trimmed) return;
+
+    let field: FilterField = 'all';
+    let value = trimmed;
+
+    // Check for field prefix
+    for (const [prefix, fieldType] of Object.entries(FIELD_PREFIXES)) {
+      if (trimmed.startsWith(prefix)) {
+        field = fieldType;
+        value = trimmed.slice(prefix.length).trim();
+        break;
+      }
+    }
+
+    if (!value) return;
+
+    // Check if filter already exists
+    const exists = searchFilters.some(f => f.field === field && f.value === value);
+    if (!exists) {
+      setSearchFilters(prev => [...prev, { id: generateId(), field, value }]);
+    }
+  };
 
   // Add search term on Enter
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputValue.trim()) {
       e.preventDefault();
-      const newTerm = inputValue.trim().toLowerCase();
-      if (!searchTerms.includes(newTerm)) {
-        setSearchTerms(prev => [...prev, newTerm]);
-      }
+      addFilter(inputValue);
       setInputValue('');
-    } else if (e.key === 'Backspace' && !inputValue && searchTerms.length > 0) {
-      // Remove last term if input is empty and backspace is pressed
-      setSearchTerms(prev => prev.slice(0, -1));
+    } else if (e.key === 'Backspace' && !inputValue && searchFilters.length > 0) {
+      setSearchFilters(prev => prev.slice(0, -1));
     }
   };
 
-  // Remove a specific term
-  const removeTerm = (termToRemove: string) => {
-    setSearchTerms(prev => prev.filter(t => t !== termToRemove));
+  // Remove a specific filter
+  const removeFilter = (id: string) => {
+    setSearchFilters(prev => prev.filter(f => f.id !== id));
   };
 
   // Stats
@@ -113,27 +188,51 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
   const filteredVideos = useMemo(() => {
     let result = indexedVideos;
 
-    // Search - all terms must match (AND logic)
-    if (searchTerms.length > 0) {
+    // Search - all filters must match (AND logic)
+    if (searchFilters.length > 0) {
       result = result.filter(v => {
-        // Build searchable text from all fields
-        const searchableText = [
-          v.filename,
-          v.metadata.title,
-          v.metadata.location,
-          v.metadata.date,
-          v.metadata.notes,
-          v.sourcePath,
-          ...(v.metadata.tags || []),
-          ...(v.metadata.customFields || []).map(f => `${f.key} ${f.value}`)
-        ].filter(Boolean).join(' ').toLowerCase();
+        return searchFilters.every(filter => {
+          const value = filter.value;
 
-        // All terms must be found
-        return searchTerms.every(term => searchableText.includes(term));
+          switch (filter.field) {
+            case 'titulo':
+              return (v.metadata.title || '').toLowerCase().includes(value);
+            case 'tag':
+              return (v.metadata.tags || []).some(t => t.toLowerCase().includes(value));
+            case 'local':
+              return (v.metadata.location || '').toLowerCase().includes(value);
+            case 'nota':
+              return (v.metadata.notes || '').toLowerCase().includes(value);
+            case 'data':
+              return (v.metadata.date || '').includes(value);
+            case 'pasta':
+              return v.sourcePath.toLowerCase().includes(value);
+            case 'camera':
+              return (v.metadata.cameraModel || '').toLowerCase().includes(value);
+            case 'campo':
+              return (v.metadata.customFields || []).some(f =>
+                f.key.toLowerCase().includes(value) || f.value.toLowerCase().includes(value)
+              );
+            case 'all':
+            default:
+              // Search in all fields
+              const searchableText = [
+                v.filename,
+                v.metadata.title,
+                v.metadata.location,
+                v.metadata.date,
+                v.metadata.notes,
+                v.sourcePath,
+                ...(v.metadata.tags || []),
+                ...(v.metadata.customFields || []).map(f => `${f.key} ${f.value}`)
+              ].filter(Boolean).join(' ').toLowerCase();
+              return searchableText.includes(value);
+          }
+        });
       });
     }
 
-    // Filter by camera
+    // Filter by camera (sidebar filter)
     if (filterCamera) {
       result = result.filter(v => v.metadata.cameraModel === filterCamera);
     }
@@ -144,7 +243,7 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
     }
 
     return result;
-  }, [indexedVideos, searchTerms, filterCamera, filterFavorites]);
+  }, [indexedVideos, searchFilters, filterCamera, filterFavorites]);
 
   // Group by folder
   const groupedByFolder = useMemo(() => {
@@ -263,13 +362,13 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
 
   // Clear filters
   const clearFilters = () => {
-    setSearchTerms([]);
+    setSearchFilters([]);
     setInputValue('');
     setFilterCamera('');
     setFilterFavorites(false);
   };
 
-  const hasActiveFilters = searchTerms.length > 0 || filterCamera || filterFavorites;
+  const hasActiveFilters = searchFilters.length > 0 || filterCamera || filterFavorites;
 
   return (
     <div className="h-full flex">
@@ -386,15 +485,18 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
 
               {/* Chips */}
               <div className="flex flex-wrap items-center gap-2 flex-1">
-                {searchTerms.map((term, index) => (
+                {searchFilters.map((filter) => (
                   <span
-                    key={index}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-600/30 text-indigo-300 rounded-full text-sm border border-indigo-500/30"
+                    key={filter.id}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border ${FIELD_COLORS[filter.field]}`}
                   >
-                    {term}
+                    {filter.field !== 'all' && (
+                      <span className="opacity-70">{FIELD_LABELS[filter.field]}:</span>
+                    )}
+                    {filter.value}
                     <button
-                      onClick={() => removeTerm(term)}
-                      className="hover:text-white transition-colors"
+                      onClick={() => removeFilter(filter.id)}
+                      className="hover:text-white transition-colors ml-0.5"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -404,18 +506,18 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
                 {/* Input */}
                 <input
                   type="text"
-                  placeholder={searchTerms.length === 0 ? "Digite e pressione Enter para adicionar filtros..." : "Adicionar filtro..."}
+                  placeholder={searchFilters.length === 0 ? "Digite e pressione Enter (ex: tag:praia, titulo:viagem)" : "Adicionar filtro..."}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="flex-1 min-w-[150px] bg-transparent border-none outline-none text-slate-200 placeholder:text-slate-600 py-1"
+                  className="flex-1 min-w-[180px] bg-transparent border-none outline-none text-slate-200 placeholder:text-slate-600 py-1"
                 />
               </div>
 
               {/* Clear all */}
-              {(searchTerms.length > 0 || inputValue) && (
+              {(searchFilters.length > 0 || inputValue) && (
                 <button
-                  onClick={() => { setSearchTerms([]); setInputValue(''); }}
+                  onClick={() => { setSearchFilters([]); setInputValue(''); }}
                   className="text-slate-500 hover:text-slate-300 flex-shrink-0"
                   title="Limpar busca"
                 >
@@ -425,9 +527,22 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
             </div>
 
             {/* Helper text */}
-            <p className="text-xs text-slate-600 mt-2 text-center">
-              Pressione <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">Enter</kbd> para adicionar • <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">Backspace</kbd> para remover último
-            </p>
+            <div className="text-xs text-slate-600 mt-2 text-center space-y-1">
+              <p>
+                <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">Enter</kbd> adicionar •
+                <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400 ml-1">Backspace</kbd> remover
+              </p>
+              <p className="text-slate-500">
+                Prefixos: <code className="text-emerald-400">titulo:</code>
+                <code className="text-amber-400 ml-1">tag:</code>
+                <code className="text-cyan-400 ml-1">local:</code>
+                <code className="text-purple-400 ml-1">nota:</code>
+                <code className="text-rose-400 ml-1">data:</code>
+                <code className="text-orange-400 ml-1">pasta:</code>
+                <code className="text-sky-400 ml-1">camera:</code>
+                <code className="text-pink-400 ml-1">campo:</code>
+              </p>
+            </div>
           </div>
 
           {/* Results count */}
@@ -489,7 +604,7 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
                 {expandedFolders.has(folder) && (
                   <div className="border-t border-slate-800 divide-y divide-slate-800/50">
                     {videos.map(video => (
-                      <VideoSearchResult key={video.id} video={video} searchTerms={searchTerms} />
+                      <VideoSearchResult key={video.id} video={video} searchFilters={searchFilters} />
                     ))}
                   </div>
                 )}
@@ -505,17 +620,17 @@ export default function SearchMode({ onNotify }: SearchModeProps) {
 // Video Search Result Component
 interface VideoSearchResultProps {
   video: IndexedVideo;
-  searchTerms: string[];
+  searchFilters: SearchFilter[];
 }
 
-function VideoSearchResult({ video, searchTerms }: VideoSearchResultProps) {
+function VideoSearchResult({ video, searchFilters }: VideoSearchResultProps) {
   const { metadata, filename, sourceFile } = video;
 
-  // Highlight matching text for all search terms
+  // Highlight matching text for all search filter values
   const highlight = (text: string) => {
-    if (searchTerms.length === 0 || !text) return text;
-    // Create regex that matches any of the search terms
-    const pattern = searchTerms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    if (searchFilters.length === 0 || !text) return text;
+    // Create regex that matches any of the filter values
+    const pattern = searchFilters.map(f => f.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
     const regex = new RegExp(`(${pattern})`, 'gi');
     const parts = text.split(regex);
     return parts.map((part, i) =>
